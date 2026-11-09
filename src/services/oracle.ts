@@ -2,6 +2,47 @@ import type { Campaign, Character, Session } from '../data';
 
 export type OracleContext = { campaign: Campaign; characters: Character[]; sessions: Session[]; edition: '2014' | '2024'; detailed: boolean; ruling: boolean };
 
+export async function askOracle(question: string, context: OracleContext, onText: (text: string) => void) {
+  const endpoint = import.meta.env.VITE_ORACLE_API_URL;
+  if (!endpoint) {
+    await new Promise(resolve => setTimeout(resolve, 420));
+    const result = mockAnswer(question, context);
+    onText(result.answer);
+    return result.reference;
+  }
+
+  const response = await fetch(`${endpoint.replace(/\/$/, '')}/oracle`, {
+    method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, edition: context.edition, detailed: context.detailed, ruling: context.ruling })
+  });
+  if (!response.ok || !response.body) throw new Error(`Oracle unavailable (${response.status}). Try again later.`);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let answer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split('\n\n');
+    buffer = events.pop() || '';
+    for (const eventText of events) {
+      const data = eventText.split('\n').filter(line => line.startsWith('data: ')).map(line => line.slice(6)).join('\n');
+      if (!data || data === '[DONE]') continue;
+      try {
+        const event = JSON.parse(data);
+        if (event.type === 'response.output_text.delta') { answer += event.delta; onText(answer); }
+        if (event.type === 'error' || event.type === 'response.failed') throw new Error('The Oracle could not finish this answer.');
+      } catch (error) {
+        if (error instanceof SyntaxError) continue;
+        throw error;
+      }
+    }
+  }
+  if (!answer) throw new Error('The Oracle returned an empty answer.');
+  return `Campaign notes · SRD ${context.edition === '2014' ? '5.1' : '5.2.1'}`;
+}
+
 export function mockAnswer(question: string, context: OracleContext) {
   const q = question.toLowerCase();
   const character = context.characters.find(c => q.includes(c.name.toLowerCase().split(' ')[0]));

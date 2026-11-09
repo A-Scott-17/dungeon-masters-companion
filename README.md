@@ -17,13 +17,13 @@ Run `pnpm build` to check the production build. The Vite base path is set for th
 
 Fictional starter data lives in `src/data.ts`. In DM Mode, you can edit the demo campaign, characters, and session recaps. Those edits are saved **only in the current browser's localStorage**. They are not private or shared across devices. Do not enter actual secret campaign notes, character details, or API keys into the public demo.
 
-For a real campaign, deploy a private backend with account authentication and server-side authorization, then move campaign records and approved recap updates into a persistent database. Keep DM notes behind a server-enforced DM role. The current recap analyzer extracts matching sentences from the entered summary; the DM chooses which suggestions become campaign notes.
+For a real campaign, deploy the prepared backend in `backend/` with Cloudflare Access and D1, then connect the character and recap editors to its records API. Keep DM notes behind the server-enforced DM role. The current recap analyzer extracts matching sentences from the entered summary; the DM chooses which suggestions become campaign notes.
 
 ## OpenAI connection
 
-The frontend's `src/services/oracle.ts` is the mock provider. Replace its use in `src/App.tsx` with a streaming request to your authenticated backend when that backend is deployed. The backend should retrieve rules and campaign records from server-side storage, apply house rules first, and call the OpenAI API with a configurable model and editable instructions. Keep `OPENAI_API_KEY` and any private campaign data only in the backend environment.
+The frontend's `src/services/oracle.ts` uses mock responses by default. Set `VITE_ORACLE_API_URL` at build time to use the prepared streaming backend. It retrieves campaign records from D1, applies house rules first, and calls the OpenAI Responses API. Keep `OPENAI_API_KEY` and private campaign data only in the backend environment. See [backend setup](backend/README.md).
 
-Before enabling real requests, enforce server-side authentication and DM roles, per-user rate limits, a daily usage or spending ceiling, input size limits, and logging that excludes private note contents. GitHub Pages cannot run this backend. No OpenAI integration or cross-device sync is active in the demo.
+The backend verifies Cloudflare Access tokens, limits requests per user and day, caps output tokens, and restricts browser origins. Configure OpenAI project spending limits too. GitHub Pages cannot run this backend. No OpenAI integration or cross-device sync is active in the deployed demo.
 
 ## Deploy
 

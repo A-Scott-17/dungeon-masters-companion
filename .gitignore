@@ -18,3 +18,4 @@ CODEX_NOTES.md
 AI_NOTES.md
 *.local
 *.tsbuildinfo
+backend/wrangler.toml

@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS records (
+  kind TEXT PRIMARY KEY,
+  content TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS usage (
+  email TEXT NOT NULL,
+  day TEXT NOT NULL,
+  count INTEGER NOT NULL,
+  PRIMARY KEY (email, day)
+);

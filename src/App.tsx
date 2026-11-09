@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BookOpen, ChevronRight, CircleHelp, Crown, Dice5, Menu, Mic, MoonStar, Plus, ScrollText, Send, Shield, Sparkles, Swords, Trash2, Users, X } from 'lucide-react';
 import { ruleCards, sampleCampaign, sampleCharacters, sampleSessions, type Campaign, type Character, type Session } from './data';
-import { mockAnswer } from './services/oracle';
+import { askOracle } from './services/oracle';
 
 type Page = 'oracle' | 'party' | 'journal' | 'dice' | 'rules' | 'initiative' | 'dm';
 type Message = { id: string; role: 'you' | 'oracle'; text: string; reference?: string };
@@ -58,16 +58,20 @@ function App() {
     recognition.onerror = () => setNotice('Microphone input failed. Check browser permissions and try again.');
     recognition.start();
   };
-  const ask = (ruling = false, text = question) => {
+  const ask = async (ruling = false, text = question) => {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
     setMessages(current => [...current, { id: uid(), role: 'you', text: trimmed }]);
     setQuestion(''); setLoading(true);
-    window.setTimeout(() => {
-      const response = mockAnswer(trimmed, { campaign, characters, sessions, edition, detailed, ruling });
-      setMessages(current => [...current, { id: uid(), role: 'oracle', text: response.answer, reference: response.reference }]);
-      setLoading(false);
-    }, 420);
+    const responseId = uid();
+    try {
+      const reference = await askOracle(trimmed, { campaign, characters, sessions, edition, detailed, ruling }, answer => {
+        setMessages(current => current.some(message => message.id === responseId) ? current.map(message => message.id === responseId ? { ...message, text: answer } : message) : [...current, { id: responseId, role: 'oracle', text: answer }]);
+      });
+      setMessages(current => current.map(message => message.id === responseId ? { ...message, reference } : message));
+    } catch (error) {
+      setMessages(current => [...current, { id: uid(), role: 'oracle', text: error instanceof Error ? error.message : 'The Oracle is unavailable.' }]);
+    } finally { setLoading(false); }
   };
   const roll = (expression = rollExpression) => {
     setRollExpression(expression);
